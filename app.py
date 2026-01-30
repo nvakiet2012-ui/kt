@@ -3,12 +3,12 @@ import google.generativeai as genai
 import json
 import os
 
-# 1. Cấu hình API - Dùng gemini-1.5-flash là bản 'quốc dân' ổn định nhất
+# 1. Cấu hình API
 GEMINI_API_KEY = "AIzaSyCQFGrPYS_7PkbniYFwy1Vx4YSlk3kMBmI"
 genai.configure(api_key=GEMINI_API_KEY)
+# Dùng model này để tương thích 100% với thư viện mới bro vừa cài
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 2. Hàm đọc/ghi bộ nhớ có bảo vệ (Fix lỗi JSONDecodeError)
 def load_history():
     if os.path.exists("history.json"):
         try:
@@ -16,7 +16,7 @@ def load_history():
                 data = json.load(f)
                 return data if isinstance(data, list) else []
         except:
-            return [] # Nếu file lỗi, tự động reset về [] để app không sập
+            return []
     return []
 
 def save_history(messages):
@@ -28,25 +28,30 @@ if "messages" not in st.session_state:
 
 st.title("⚽ CR7 AI - BỘ NÃO TỰ HỌC 24/7")
 
-# Hiển thị lịch sử
+if st.button("Xóa lịch sử chat"):
+    st.session_state.messages = []
+    save_history([])
+    st.rerun()
+
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 3. Xử lý chat và ép AI tuân thủ luật C++ của bro
 if prompt := st.chat_input("Nói gì đi bro..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    instruction = "Bạn là CR7. Quy tắc C++: TUYỆT ĐỐI không dùng // và không dùng #include <bits/stdc++.h>. Luôn thân thiện."
-    full_prompt = f"{instruction}\nLịch sử chat: {str(st.session_state.messages)}"
+    instruction = "Bạn là CR7. Quy tắc C++: KHÔNG dùng // và KHÔNG dùng #include <bits/stdc++.h>."
+    full_prompt = f"{instruction}\nLịch sử: {str(st.session_state.messages)}"
 
     try:
+        # Vá lỗi: Kiểm tra phản hồi có tồn tại không
         response = model.generate_content(full_prompt)
-        with st.chat_message("assistant"):
-            st.markdown(response.text)
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-        save_history(st.session_state.messages)
+        if response.text:
+            with st.chat_message("assistant"):
+                st.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            save_history(st.session_state.messages)
     except Exception as e:
-        st.error(f"Lỗi rồi bro: {e}")
+        st.error(f"Lỗi API (Có thể do Key hoặc Model): {e}")
